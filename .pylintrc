@@ -1,0 +1,26 @@
+[MESSAGES CONTROL]
+
+no-else-return=no
+disable = C0305, C0303, W291, C0111, R0801, W0703, C0103, W0611, C0301, R1723, W0702, W0621, E1101, R0201, C0111, R0912, R0911, R0915, C0411, E0704, W0511, R0903, R0902, C0412,W0105, W1401, W0212, R1705, C0330, E1121, C0415, E0001, W0231, W1203, E1126, NQA101
+
+ignored-classes=Gdrive,Eudat,IpfsMiniLock,Ipfs
+
+[TYPECHECK]
+ignored-classes=Gdrive,Eudat,IpfsMiniLock,Ipfs
+
+notes=FIXME,
+      XXX,
+
+[IMPORTS]
+known-third-party=mongodb,libs.mongodb, bp, env, logging, config, utils
+
+[DESIGN]
+
+# Maximum number of lines
+max-module-lines=1250
+
+# Maximum number of locals for function / method body
+max-locals=30
+
+# Maximum number of arguments for function / method
+max-args=10

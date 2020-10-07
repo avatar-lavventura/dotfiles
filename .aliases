@@ -1,0 +1,715 @@
+# Setting up aliases
+# ==================
+
+disable_git-auto-fetch () {
+    command git rev-parse --is-inside-work-tree &> /dev/null || return 0
+    local guard="$(command git rev-parse --git-dir)/NO_AUTO_FETCH"
+    if [[ ! -f "$guard" ]]
+    then
+        command touch "$guard" && echo "git-auto-fetch==${fg_bold[red]}disabled${reset_color}"
+    fi
+}
+
+_gu () {
+    if [ "$#" -ne 1 ]; then
+        echo "Illegal number of parameters"
+        return
+    fi
+
+    if ! [[ "$1" =~ ^[0-9]+$ ]]
+    then
+        echo "Sorry integers only"
+        return
+    fi
+    disable_git-auto-fetch
+    git reset "HEAD@{"$1"}"
+}
+
+alias gu=_gu
+
+pyclean () {
+    find . | grep -E "(.mypy_cache|.pytest_cache|__pycache__|\.pyc|\.pyo$)" | xargs rm -rf
+}
+
+focus_mode () {
+    killall Hamsket
+    killall Telegram
+    ps -ef | grep "Elmedia" | grep -v grep | awk '{print $2}' | xargs kill -9
+}
+
+is_internet() {
+    output=$(ping -c 4 -q google.com >&/dev/null; echo $?)
+    if [ $output -eq 0 ]; then
+        echo "connected"
+    else
+        echo "not_connected"
+    fi
+}
+
+ssh_home() {
+    HOSTNAME=$(hostname)
+    if [ "$HOSTNAME" == "home" ];then
+        echo "[$HOSTNAME] alredy in $HOSTNAME"
+    else
+        home_ip=$(cat ~/personalize/home_ip)
+        ssh -Y4tC alper@$home_ip zsh -i  # \"cd ebloc-broker ; zsh -l\"" @ tetam Y
+    fi
+}
+
+ssh_home2() {
+    HOSTNAME=$(hostname)
+    if [ "$HOSTNAME" == "home2" ];then
+        echo "[$HOSTNAME] alredy in $HOSTNAME"
+    else
+        home2_ip=$(cat ~/personalize/home2_ip)
+        ssh -Y4tC alper@$home2_ip zsh -i  # \"cd ebloc-broker ; zsh -l\"" @ tetam Y
+    fi
+}
+
+_kill() {
+    pkill -1 -f $1
+    pids=$(pgrep -f -l $1 | awk '{print $1}')
+    if [ "$str" != "" ];then
+        sudo kill -9 $pids
+    fi
+}
+
+alias _gs='git -c color.status=always status -sb --ignore-submodules=dirty'
+
+_git_diff() {
+    _gs && git_diff
+}
+
+git_hard_reset() {
+    git fetch --all
+    git gc
+    git reset
+    branch_name=$(git branch --show-current)
+    git reset --hard origin/$branch_name
+    git clean -f -d
+    git pull --rebase
+    git stash clear
+}
+
+alias gff=git_hard_reset
+
+pull_personalize() {  # fetch and update personalize on local side
+    curr_dir=$(pwd)
+    cd $HOME/personalize
+    git_hard_reset
+    ./update_local.sh y
+    source ~/.zshrc  # order is important
+    source ~/.zshenv
+    cd $curr_dir
+    $HOME/personalize/bin/kill_e.sh
+}
+
+free_space() {
+        uname_out="$(uname -s)"
+    case "${uname_out}" in
+        Darwin*) # UNIX
+            diskutil info / | grep 'Free Space' | awk '{print $4,$5}'
+            ;;
+        *) # LINUX
+            df -H / | tail -1 | awk '{print $4}'
+            ;;
+    esac
+}
+
+tar_extract () {
+    STRIP=${1%.*};
+    NAME=${STRIP%.tar};
+    tar -xvf "$1" --xform="s|^|$NAME/|S"
+}
+
+zsh_history_fix() {  # Fixes a corrupt .zsh_history file
+    cd $HOME
+    mv .zsh_history .zsh_history_bad
+    strings .zsh_history_bad > .zsh_history
+    fc -R .zsh_history
+}
+
+tar_tar() {
+    STRIP=${1%.*}                         # strip last suffix
+    NAME=${STRIP%.tar}                    # strip .tar suffix, if present
+    tar -xvf "$1" --xform="s|^|$NAME/|S"  # run command
+}
+
+open_emacs() {
+    FILE=$1
+    if [[ -d $FILE ]]; then
+        echo "Folder path is provided, please provide a file"
+        return
+    fi
+
+    if [ ! -f "$FILE" ]; then
+        # echo "$FILE does not exist."
+        emacsclient -qut -e '(progn (find-file "'$FILE'"))' 2>/dev/null
+        return
+    fi
+
+    if [ "$#" -ge 1 ]; then
+        emacsclient -qut -e '(progn (find-file "'$FILE'"))' 2>/dev/null
+        # emacsclient -t -q $1 2>/dev/null
+        # emacsclient -t filename.py Driver.py  # https://emacs.stackexchange.com/a/64163/18414
+        if [ $? -eq 0 ]; then
+            true
+        else
+            emacsclient -qt -e '(progn (find-file "'$FILE'"))' 2>/dev/null
+        fi
+    else
+        echo "## Please provide a file"
+    fi
+}
+
+run_xquartz() {
+    num=$(ps aux | grep -E '[X]quartz :0' | wc -l)
+    if [ $num -eq 0 ]; then
+        echo "## Running Xquartz"
+        (&>/dev/null /Applications/Utilities/XQuartz.app/Contents/MacOS/X11.bin &)
+    fi
+}
+
+macsman() {
+    if [ $num -ge 1 ]; then
+        _man=$(command man $1 2>&1)
+        output=$(echo $_man | head -n 1)
+
+        if [[ $output == *"No manual entry for"* ]]; then
+            echo $output
+        else
+            emacsclient -nw -e "(let ((Man-notify-method 'bully)) (man \"$1\"))"
+        fi
+    else
+        command man $1
+    fi
+}
+
+_kill_port() {
+    re='^[0-9]+$'
+    if ! [[ $1 =~ $re ]] ; then
+        echo "error: Not a number" >&2; return
+    else
+        fuser -k $1/tcp
+    fi
+
+}
+
+_rebase_continue() {
+    git add --all
+    git push origin HEAD:master --force
+    git rebase --continue
+    git push -f
+}
+
+alias gmc="git merge --continue"
+alias {master_force,rebase_continue}=_rebase_continue
+alias kill_port=_kill_port
+alias {home,ho,hom,hoe,heo,hor}="ssh_home"
+alias {home2,ho2,hom2,hoe2,heo2,hor2}="ssh_home2"
+alias ssh="ssh -Y"
+alias man=macsman
+alias mman="command man"
+
+# export GREP_COLORS="sl=1;35;49:ms=1;34;49"
+_ff() {
+    find . -name "*$1*" -print | head | grep --color=always '^\|[^/]*$'
+}
+
+alias ff=_ff
+# alias pip="pip -qq" # pip -qq (pip quiet)
+
+## How to remove a single line from history?
+## https://unix.stackexchange.com/a/49216/198423
+## =============================================
+PROMPT_COMMAND="history -a"
+HISTCONTROL=ignoredups:erasedups:ignorespace
+
+psl() {
+  local PS_OUTPUT="$(ps auxww)"
+  echo "${PS_OUTPUT%%$'\n'*}" >&2  # title, in stderr to avoid pipes
+  echo "${PS_OUTPUT#*$'\n'}" |grep -i "${@:-^}"
+}
+
+run_latest_command() {
+    cmd=$(history -50 | grep -e " \\./" | tail -1 | awk '{print $2}')
+    echo $cmd
+    $cmd
+}
+
+# some aliases
+# ============
+if [ $(hostname) = "home" ] || [ $(hostname) = "home2" ]; then
+    EBB="/mnt/hgfs/ebloc-broker/broker"
+else
+    EBB="$HOME/ebloc-broker/broker"  # symbolic linked folder
+fi
+
+alias {_,suod,sduo}="sudo"
+alias eamcs="emacs"
+alias lr="run_latest_command"
+alias pkil="pkill -f"
+alias pgrep="pgrep -f"
+alias foo='echo "$(whoami)@$(hostname):$PWD"'
+alias mount="sudo mount"
+alias mkdir="mkdir -p"
+alias rr="bash run.sh"
+alias rv="rsync -vxaES --remove-source-files --ignore-existing --no-W --progress"
+alias ka="$EBB/bash_scripts/killall.sh"
+alias rp="rsync -avhW --progress --recursive"
+alias tare=tar_tar
+
+alias {to,todo}=" e $EBB/../TODO"
+alias clean_repo=" $EBB/bash_scripts/clean.sh"
+alias ke=' ~/personalize/bin/kill_e.sh'
+alias ebc='cd $EBB/contract/contracts'
+alias {eb,ebb}=' cd $EBB'
+alias {mkdire,mkdira}="mkdir"
+alias .eb=" cd ~/.ebloc-broker"
+alias .p=" cd ~/personalize/"
+alias .a=" e ~/.aliases"
+alias .e=" e ~/.emacs"
+alias rn="rm"
+alias s="~/personalize/bin/search.sh"
+alias ss="~/personalize/bin/search_all.sh"
+
+alias _trade="cd $HOME/trade_bot/bot && ./binance_track.py --trade True --log True"
+alias e="open_emacs"
+alias en="command emacs -nw --no-site-file --debug-init"
+alias eq="command emacs -q -nw -l ~/personalize/emacs_q.el"
+alias eqq="command emacs -Q -nw"
+alias tsc=" cd ~/Documents/research/TSC_eBlocPOA && e eblocbroker.tex"
+alias se="sudo emacs -q -nw -l ~/personalize/emacs_q.el"
+alias py='python3 -tt '  # -B
+alias ip_a="ip -s -c -h a"
+
+#  you can get newlines again with
+alias r="stty sane && stty erase \"^H\" kill \"^U\" intr \"^C\" eof \"^D\" susp \"^Z\""
+alias dirs='dirs -v'
+alias q=" exit && exit" # logout
+alias curl="curl -L"
+alias open=" open "
+alias python=python3
+
+# sudo commands
+# =============
+alias pkill="sudo pkill"
+alias halt="sudo reboot"
+alias killall="sudo killall"
+alias {grm,git_remove_cached}="git rm -r --cached"
+
+# https://stackoverflow.com/a/15432250/2402577
+alias pull_reset_hard="git reset --hard origin/master && git rebase --abort && echo 'You can undo this move by using: git reset --hard HEAD@{1}'"
+
+# alias rm="safe-rm"
+# alias et='emacs-tty'
+# alias p='pwd -P'  # shows the "real" path in bash, not the path via symlinks
+
+git_diff() {
+    num=$(git diff --ignore-blank-lines --name-only `git merge-base origin/master HEAD` | wc -l)
+    if [ "$num" -eq "0" ]; then
+        echo "no changed files to diff";
+    else
+        git diff --ignore-space-at-eol
+    fi
+}
+
+git_diff_diff() {
+    num=$(git diff --ignore-blank-lines --name-only `git merge-base origin/master HEAD` | wc -l)
+    if [ "$num" -eq "0" ]; then
+        echo "no changed files to diff";
+    else
+        git diff --ignore-blank-lines --color-words HEAD | ifne less -r
+    fi
+}
+
+git_p_sub() {
+    # output=$(git rev-parse --abbrev-ref HEAD)
+    # if [[ $output != "master" ]]; then
+    #     git fetch origin master:master
+    # fi
+    git fetch --all --quiet
+    git submodule update --quiet
+    # git submodule update --init --recursive --quiet &>/dev/null
+    # autoslash is defined in `.gitignore`
+    # git pull --rebase --autostash -v
+    OUTPUT=$(git pull --rebase -v 2>&1 >/dev/null)
+    if [[ $OUTPUT == *"up to date"* ]]; then
+        echo "up to date"
+    else
+        git stash clear
+        echo $OUTPUT | less -r
+    fi
+}
+
+git_p() {
+    output=$(ping -c 4 -q google.com >&/dev/null; echo $?)
+    if [ $output -ne 0 ]; then
+        echo "E: internet is not connected"
+        return
+    fi
+
+    if [ -d .git ]; then
+        git_p_sub
+    else
+        git rev-parse --git-dir &>/dev/null
+        if [ $? -eq 0 ]; then
+            git_p_sub
+        else
+            echo "fatal: not a git repository (or any of the parent directories): .git"
+        fi
+    fi
+}
+
+### Git
+# `This way, running git pull_force will overwrite the local changes, while git
+# pull_stash will preserve them.`
+_pull_force() {
+    git fetch --all
+    git reset --hard HEAD
+    git clean -fd
+    git pull -f
+    # alias pull_force="git fetch --all && git reset --hard HEAD && git merge @{u}"
+}
+alias pull_force=_pull_force
+alias pf=pull_force
+alias pull_stash="git fetch --all && git stash && git merge @{u} && git stash pop"
+alias {dev,de}="git checkout -q dev"
+alias {m,master}="git checkout -q master"
+alias type=" ~/personalize/bin/_type"
+alias wh=" ~/personalize/bin/_type"
+alias pc=" ~/personalize/bin/percent_change.py"
+alias ping="ping -c 4"
+
+_gpp() {
+    if (( $# == 0 )); then
+        echo "No filenames provided."
+    else
+        git checkout origin/master -- "$@"
+    fi
+}
+alias gpp="_gpp"
+
+alias gs="git -c color.status=always status -sb --ignore-submodules=dirty | less -rFX"
+alias .gs="git show -1 --stat"
+
+alias gr="git reflog --format='%C(auto)%h %<|(17)%gd %C(blue)%cr%C(reset) %gs'"
+alias gg="git log --graph --abbrev-commit --decorate --date=relative --all"
+alias ga='git add '
+alias gb='git branch -a'
+alias gt='git log -1 --format="%at" | xargs -I{} date -d @{} +%Y/%m/%d\ %H:%M:%S'
+alias git_stash="git stash list | awk -F: '{ print '\n\n\n\n'; print $0; print '\n\n'; system('git stash show -p ' $1); }'"
+alias pu=".p && ./update_repo.sh y && _gs"
+alias gc=' ~/personalize/bin/git_commit_all.sh'
+# pip freeze > requirements.txt && pip install -e
+alias run="source ./run.sh"
+alias gd='_git_diff'
+alias {gp,pg}="git_p"
+
+_search() {
+    find . -name "$1*"
+}
+alias search="_search"
+alias visudo='EDITOR=nano sudo visudo'
+
+_fd() {
+    uname_out="$(uname -s)"
+    case "${uname_out}" in
+        Darwin*) # UNIX
+            output=$(command fd $1)
+            if [[ $output ]]; then
+                echo $output | as-tree
+            fi
+            ;;
+        *) # LINUX
+            output=$(fdfind $1)
+            if [[ $output ]]; then
+                echo $output | as-tree
+            fi
+            ;;
+    esac
+}
+alias fd=_fd
+
+gdd_func() {
+    # git pull -f
+    num=$(git diff --ignore-blank-lines --name-only `git merge-base origin/master HEAD` | wc -l)
+    if [ "$num" -eq "0" ]; then
+        _gs
+    else
+        # https://unix.stackexchange.com/a/657087/198423
+        # ls | tee - >([ $(wc -m) -gt 0 ] || echo No output)
+        # output=$(git diff --ignore-blank-lines --color-words HEAD | tr -d ' \n\r\t ' | wc -c)
+        output="$(git diff --ignore-blank-lines --color-words HEAD)"
+        if [[ -n $output ]]
+        then
+            { _gs && echo "" &  git_diff_diff; } | less
+        else
+            _gs
+        fi
+    fi
+}
+
+alias {whihc,whcih,whoch}=" which"
+alias run_slurm="sudo $HOME/ebloc-broker/broker/bash_scripts/run_slurm.sh"
+alias sudo=$'nocorrect sudo\t'
+alias oepn="open"
+alias gdd="gdd_func"
+alias tsx="tsc"
+alias fdd='git_diff_diff'
+alias gk='gitk --all&'
+alias gx='gitx --all'
+alias gf="git fetch --verbose"
+alias gl="git log --graph --pretty='%C(bold blue)%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr)'"
+alias gll="TIG_SCRIPT=<(echo :enter) TIG_DIFF_OPTS=\"--ignore-blank-lines\" tig 2>/dev/null"
+alias glog="git log"
+alias glo="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'"
+unalias glog
+# alias gll='git log --pretty="oneline"'
+# alias glo="git log --oneline --decorate"
+# alias glll='git log'
+# alias gl='git log --graph --oneline --decorate'
+
+# alias gff="./update_repo.sh y && gc y c"
+alias .f="gc y c"
+
+alias diff='diff --color -y --suppress-common-lines'
+alias start_up="sudo -E ~/personalize/run_start_up.sh"
+
+# alias {la,ll,rl,sl}=" ls -lA -tr -h"
+alias {la,ll,rl,sl}=" grc -es ls -lA -tr -h -ph --color"
+alias less='less -r' # -N ... line numbers
+
+alias ubuntu_info="lsb_release -a && df -h --total | command grep total | df -h --total | command grep total | head -c-3 && echo ''"
+alias {help,hepl,hellp}="e ~/personalize/help.md"  # "eq --eval "(progn (markdown-mode))" ~/personalize/help.md"
+
+alias kt=" tmux kill-server"
+alias .t="tmux -CC new -A -s main"
+alias .td="tmux detach -P"
+alias .z=" e ~/.zshrc"
+alias .zz=" e ~/.zshenv"
+alias sz=" source ~/.zshrc && source ~/.zshenv" # source ~/.zshrc
+
+alias h=" fc -l - 0 | less +G"
+alias got="git"
+alias get="git"
+alias gti="git"
+alias hotp="htop"
+alias umount="sudo umount --force -l"
+alias nethogs="sudo nethogs"
+alias check_x11="xmessage -center hello!"
+alias deactaive="deactivate"
+alias cl="pyclean"
+
+unalias history &>/dev/null
+alias hi="history"
+
+# https://stackoverflow.com/a/7131683/2402577
+alias g=" grep -Hrn -I --exclude='*.json' --exclude-dir='.git' --exclude-dir='.mypy_cache' --exclude-dir='venv' \
+      --exclude-dir='node_modules' --color=always --exclude='*~' --exclude='#*'"
+
+# alias mv="rsync --remove-source-files --progress"
+# alias cp="rsync -avhW --progress"
+alias nc="nc -v"
+alias {clean,clear}="printf '\33[H\33[2J'"
+alias catj="python3 -m json.tool"
+alias jq="jq ."
+alias tcc="tmux -CC"
+alias git_help="echo 'git push origin HEAD:master --force && git rebase --continue'"
+alias _gdd="git_diff_diff"
+
+_gmd () {
+    git -c color.ui=always merge --squash dev | grep -v "Auto-merging"  # egrep -v "END|EXPDTA"
+}
+alias gmd=_gmd
+
+ip_address_mac() {
+    echo -n "local_ip: "$(ifconfig -l | xargs -n1 ipconfig getifaddr)""
+    printf "public_ip: "
+    curl ifconfig.me
+    echo ""
+}
+
+ip_address_linux() {
+    printf "local_ip: \033[0;35m$(hostname -I)\033[0m\n"
+    printf "public_ip: "
+    curl ifconfig.me
+    echo ""
+}
+
+uname_out="$(uname -s)"
+case "${uname_out}" in
+    Darwin*) # UNIX
+        # defaults write NSGlobalDomain KeyRepeat -int 0
+        # run_xquartz
+        alias k="pkill -f"
+        alias emacs=" emacsclient -t -q "
+        alias x11="run_xquartz"
+        alias l='ls -h -G -v --author --time-style=long-iso'
+        alias ls='ls -h -G -v --author --time-style=long-iso'
+        alias l.='ls -d .* -G' ## Show hidden files
+        alias c=" pbcopy"
+        alias p=" pbpaste"
+        alias gx="open /Users/alper/fun/gitx/build/Debug/GitX.app"
+        alias dircolors="gdircolors" ## https://unix.stackexchange.com/a/91978/198423
+        alias zz="pmset sleepnow"
+        LSCOLORS="ExfxcxdxCxegedabagacad"
+        alias shutdown="sudo shutdown -h now"
+        alias trash="cd ~/.Trash"
+        alias empty_trash="command rm -rf ~/.Trash/*"
+        alias {ipp,ip_address}=" ip_address_mac"
+        alias finder='open -a finder'
+        alias poweroff="shutdown"
+        alias _unmount="diskutil unmountDisk force /Volumes/ALPER_2TB"
+        alias reboot="sudo shutdown -r now"
+        alias vv_umount=" command rm -rf /Users/alper/.Trash/* && diskutil umount /Volumes/ALPER_2TB"
+        alias bb="open_video"
+        IP=$(ipconfig getifaddr en0)
+        ;;
+    *) # LINUX
+        # alias k="pkill -f -e -c"
+        alias k="_kill "
+        alias l='ls -h --color=always -v --author --time-style=long-iso'
+        alias ls='ls -h --color=always -v --author --time-style=long-iso'
+        alias l.='ls -d .* --color=auto'
+        alias c='xclip -selection clipboard'
+        alias p='xclip -selection clipboard -o'
+        alias pbcopy="xsel -i -b"
+        alias pbpaste="xsel -o -b"
+        alias shutdown="sudo shutdown"
+        alias reboot="sudo reboot"
+        alias trash="cd ~/.local/share/Trash/files"
+        alias empty_trash="command rm -rf ~/.local/share/Trash/files/*"
+        alias {ipp,ip_address}=" ip_address_linux"
+        alias git_gui="git citool"
+        IP=$(hostname -I)
+        ;;
+esac
+
+alias {trade,bot}="cd ~/trade_bot/bot"
+alias ex="exit"
+alias rscp='rsync -aP'
+alias rsmv='rsync -aP --remove-source-files'
+alias scp='noglob scp'
+alias gdiff="git diff --ignore-blank-lines --color-words master dev | less -r"
+
+open_video() {
+    doo=$(open_video_file)
+    printf $doo | sed -e "s/[[:space:]]/\ /g"
+    if test -f "$doo"; then
+        printf "  "
+        du -h $doo |  awk '{ print $1 }'
+    fi
+}
+
+_vv() {
+    if [ $? -eq 0 ]; then
+        FILE="$1"
+        if test -f "$FILE"; then
+            command rm -rf "$1"
+            open_video
+        else
+            echo "## File does not exist. Opening new one..."
+            open_video
+        fi
+    else
+        echo "usage: vmv \$doo && vv"
+    fi
+    # mv "$1" /Users/alper/.Trash 2>/dev/null || { echo "usage: vmv \$doo && vv" }
+    # mv $doo /Users/alper/.Trash & progress -mp $!
+}
+
+alias vmv="_vv"
+alias tls="tmux list-sessions"
+# alias tls="tmux ls && echo "" && ps"
+
+# https://unix.stackexchange.com/a/21829/198423
+alias emacsclient="emacsclient -c" # alias emacsclient="emacsclient -tq "
+
+if [[ $HOSTNAME =~ "netlab" ]]; then
+    alias poweroff=""
+    alias shutdown=""
+fi
+
+_fg() {
+    # num=$(jobs | grep -E emacs | wc -l)  # jobs returns without the process name
+    num=$(ps T | grep -E emacsclient | wc -l)
+    sleep 0.1
+    if [ $num -ge 0 ]; then
+        fg 2> /dev/null
+        (clean &)
+    fi
+}
+
+alias md="git diff origin/master..dev"
+
+# -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# TERM=xterm-256color (https://stackoverflow.com/a/64585/2402577)
+# alias .e="emacs -q -nw -l ~/personalize/emacs_q.el ~/.emacs"
+
+# ## git aliases
+# alias gc="git commit -m "$@"";
+# alias gcd="git checkout develop";
+# alias gmd="git merge develop";
+# alias gctd="git checkout terance-develop";
+# alias gcnad="git checkout newAdminDashboard";
+# alias gpull="git pull";
+# alias gcls="git clean -nd" #show files to be cleaned
+# alias gclr="git clean -fd" #remove files to be cleaned
+# alias gpush="git push origin HEAD";
+# alias glog="git log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --branches"
+# alias gref="git reflog";
+# alias gbc="git checkout -B "
+# alias gbd="git branch -D "
+# alias ga="git add -A";
+# alias gb="git branch";
+# alias grh="git reset --hard";
+# alias grm="git reset --mixed";
+# alias gch="git checkout "
+
+# alias gcm="git checkout master";
+# alias gf="git fetch";
+# alias gfa="git fetch --all";
+# alias gf="git fetch origin";
+# alias gd="git diff";
+# alias gbr="git branch remote"
+# alias gfr="git remote update"
+# # alias grh="git reset HEAD~" # last commit
+# alias gac="git add -A && git commit -a -m "
+# alias gsu="git gpush --set-upstream origin "
+
+# function git-fetch-all {
+#     (`command git rev-parse --is-inside-work-tree 2>/dev/null` &&
+#          dir=`command git rev-parse --git-dir` &&
+#          [[ ! -f $dir/NO_AUTO_FETCH ]] &&
+#          (( `date +%s` - `date -r $dir/FETCH_LOG +%s 2>/dev/null || echo 0` > $GIT_AUTO_FETCH_INTERVAL )) &&
+#          GIT_SSH_COMMAND="command ssh -o BatchMode=yes" command \
+#                         git fetch 2>/dev/null && git pull --rebase --autostash \
+#                                                      2>/dev/null &>! $dir/FETCH_LOG &)
+# }
+# alias gfa="git-fetch-all"
+
+# ln -s -f ~/ebloc-broker/bash_scripts/run_slurm.sh /usr/local/bin
+
+## OLD
+## ===
+# ssh_color () {
+#     ~/personalize/bin/ssh_color.py $*
+#     trap 'echo -e "\033]6;1;bg;*;default\a"' INT EXIT
+#     ssh $*
+# }
+# alias ssh=ssh_color  # color tabs
+
+# bindkey -r "^C"
+# bindkey -s "^c" "fg 2> /dev/null \n"
+# bindkey -s "^[c" "fg 2> /dev/null \n" # alt + j
+# bindkey -s "^]"  "fg 2> /dev/null \n" # ctrl + ]
+# bindkey -s "^[J" "fg 2> /dev/null \n" # alt + j
+# echo ' [space] [ctrl-v] [key]
+# bkeyindkey -s "^q" "~.\n"
+
+# alias g='git status -sb'
+# alias gr='git reflog'
+# alias gr="git reflog --format='%C(auto)%h %<|(17)%gd %C(blue)%cr%C(reset) %gs (%s)'"
+# alias gg="git log --graph --decorate --oneline \$(git rev-list -g --all)"
+# alias gd='git diff --ignore-blank-lines --color=always HEAD | less -r'

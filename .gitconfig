@@ -1,0 +1,91 @@
+[user]
+      	email = alper.alimoglu@gmail.com
+	name = avatar-lavventura
+
+[core]
+	fileMode = false
+	logAllRefUpdates = true
+
+[color]
+	ui = always
+
+[core]
+	pager = delta
+	editor = TERM=screen-256color emacs -Q -nw -l ~/personalize/emacs_q.el --eval \"(progn (markdown-mode))\"
+	# editor = TERM=screen-256color /Applications/Emacs.app/Contents/MacOS/Emacs -Q -nw -l ~/personalize/emacs_q.el --eval \"(progn (markdown-mode))\"
+	excludesFile = ~/.gitignore_global
+	packedGitLimit = 512m
+	packedGitWindowSize = 512m
+[commit]
+	template = ~/.git_commit_template.txt
+
+[diff]
+	wordRegex = [[:alnum:]_]+|[^[:alnum:]_[:space:]]+
+	ignoreSubmodules = dirty
+
+[pull]
+	rebase = true
+	ff = only
+
+[rebase]
+	autoStash = true
+
+[alias]
+	pullr = "!git fetch; git pull --rebase --autostash"
+	lol = log --decorate --oneline --graph
+	rl = reflog --pretty=reflog
+	unstage = reset HEAD
+	set-upstream = \
+       !git branch \
+
+       lg1 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+       lg2 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all
+       lg = !"git lg1"
+	conflicts = diff --name-only --diff-filter=U
+
+
+[pretty]
+	reflog = %C(auto)%h %<|(17)%gd %C(blue)%cr%C(reset) %gs
+
+[difftool]
+	prompt = false
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	features = line-numbers decorations highlight-removed diff-so-fancy side-by-side
+	syntax-theme = ansi-dark
+	minus-style = bold syntax "#3E0103"
+	plus-style = bold syntax "#44475a"
+	whitespace-error-style = 22 reverse
+
+[merge]
+	conflictStyle = diff3
+
+[oh-my-zsh]
+	hide-dirty = 1
+	hide-status = 1
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+
+[pack]
+       deltaCacheSize = 2047m
+       packSizeLimit = 2047m
+       windowMemory = 2047m
+
+[credential]
+	helper = store
+
+[rerere]
+	enabled = 1
+	autoupdate = true
+
+[delta "decorations"]
+       commit-decoration-style = bold yellow box ul
+       file-style = bold yellow ul
+       file-decoration-style = none
+       hunk-header-decoration-style = cyan box ul

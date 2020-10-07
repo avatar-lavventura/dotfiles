@@ -1,0 +1,14 @@
+import os
+
+alias kk os._exit(0)
+alias q os._exit(0)
+unalias p
+alias l u;;d;;list
+# Print instance variables (usage "pi classInst")
+alias pi for k in %1.__dict__.keys(): print("%1.",k,"=",%1.__dict__[k])
+# Print instance variables in self
+alias ps pi self
+alias r restart
+
+# https://stackoverflow.com/questions/5169702/how-do-i-list-the-current-line-in-python-pdb
+# https://docs.python.org/3/library/pdb.html#pdbcommand-alias
